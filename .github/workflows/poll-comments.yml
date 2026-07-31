@@ -1,11 +1,9 @@
 name: Poll LinkedIn Comments
 
 on:
-  schedule:
-    # GitHub Actions does not guarantee exact timing on the free tier during
-    # high load -- treat this as "every ~10-15 minutes", not exact.
-    - cron: "*/10 * * * *"
   workflow_dispatch: {}
+  schedule:
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: write
