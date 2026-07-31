@@ -28,6 +28,7 @@ when this script actually POSTs something -- i.e. only on real new leads.
    | `UNIPILE_ACCOUNT_ID` | Your Unipile LinkedIn `account_id` |
    | `UNIPILE_API_KEY` | Your Unipile API key |
    | `POST_ID` | The LinkedIn post ID (numeric part of the post URL) |
+   | `POST_ID_TYPE` | `share` or `activity` (see below) -- optional, defaults to `share` |
    | `TRIGGER_WORD` | e.g. `workflow` |
    | `N8N_WEBHOOK_URL` | `https://qismt.app.n8n.cloud/webhook/8f62b703-8f95-4656-9a53-3c860767c51b/unipile-comment-webhook` |
 
@@ -39,6 +40,28 @@ when this script actually POSTs something -- i.e. only on real new leads.
    `author_name`, `author_headline`) all need confirming against your actual Unipile
    API response -- these were carried over as assumptions from the original workflow
    and haven't been checked against live data yet.
+
+## POST_ID_TYPE: share vs activity
+
+LinkedIn post URLs come in two flavors, and Unipile needs different handling for each:
+
+- `.../posts/name_text-**share**-1234567890-AbCd/` -> `POST_ID_TYPE=share`. The post's
+  `social_id` (needed for all comment/reply calls) is just `urn:li:share:{POST_ID}` --
+  no extra API call needed.
+- `.../posts/name_text-**activity**-1234567890-AbCd/` or
+  `.../feed/update/urn:li:activity:1234567890/` -> `POST_ID_TYPE=activity`. The numeric
+  ID only works to look up the post; the poller calls `GET /api/v1/posts/{POST_ID}`
+  once per run to read the real `social_id` off the response.
+
+Check your post's URL to know which one to set. Get this wrong and you'll see a 404
+"resource not found" (tried `activity` lookup on a `share` post) or a 400
+"invalid post_id" (tried using the raw numeric ID directly for a post that actually
+needed the `activity` lookup).
+
+**Important**: n8n's `Set Config` node has its own `postId` value used to build reply
+URLs (`POST /api/v1/posts/{postId}/comments`) -- it needs to hold the *resolved*
+`social_id` string (e.g. `urn:li:share:7489052847762784256`), not the raw numeric ID,
+or those calls will fail the same way.
 
 ## Adjusting the poll interval
 

@@ -14,6 +14,10 @@ const {
   UNIPILE_ACCOUNT_ID,
   UNIPILE_API_KEY,
   POST_ID,
+  // "share" (default) or "activity" -- which kind of LinkedIn post URL POST_ID came from.
+  // Look at the post's URL: ".../posts/name_text-share-1234567890-AbCd" -> "share",
+  // ".../posts/name_text-activity-1234567890-AbCd" or ".../feed/update/urn:li:activity:1234567890" -> "activity".
+  POST_ID_TYPE = "share",
   TRIGGER_WORD,
   N8N_WEBHOOK_URL,
 } = process.env;
@@ -55,10 +59,20 @@ function saveSeenIds(seenSet) {
 // pagination cursor field name) against your Unipile docs -- same caveat that applied
 // to the old in-n8n HTTP Request node.
 
-// LinkedIn's numeric activity ID (from the post URL) only works to look up the post
-// itself. Every other post interaction (listing comments, posting a reply) requires
-// the post's "social_id", which this returns.
+// Every post interaction (listing comments, posting a reply) needs the post's
+// "social_id", not the raw numeric ID from the URL. How to get it depends on which
+// URL variant the numeric ID came from:
+//   - "share" URLs: the social_id is just `urn:li:share:{numeric id}`, no lookup needed.
+//   - "activity" URLs: the numeric id works to look up the post, whose response
+//     contains the real social_id (usually `urn:li:activity:{numeric id}`, but let
+//     the API tell us rather than assuming).
 async function resolveSocialId() {
+  if (POST_ID_TYPE === "share") {
+    const socialId = `urn:li:share:${POST_ID}`;
+    console.log(`Using share social_id: ${socialId}`);
+    return socialId;
+  }
+
   const url = new URL(`${UNIPILE_BASE_URL}/api/v1/posts/${POST_ID}`);
   url.searchParams.set("account_id", UNIPILE_ACCOUNT_ID);
 
