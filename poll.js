@@ -54,12 +54,37 @@ function saveSeenIds(seenSet) {
 // VERIFY: path, account_id query param, response shape (comments array field name,
 // pagination cursor field name) against your Unipile docs -- same caveat that applied
 // to the old in-n8n HTTP Request node.
-async function fetchAllComments() {
+
+// LinkedIn's numeric activity ID (from the post URL) only works to look up the post
+// itself. Every other post interaction (listing comments, posting a reply) requires
+// the post's "social_id", which this returns.
+async function resolveSocialId() {
+  const url = new URL(`${UNIPILE_BASE_URL}/api/v1/posts/${POST_ID}`);
+  url.searchParams.set("account_id", UNIPILE_ACCOUNT_ID);
+
+  const response = await fetch(url, {
+    headers: { "X-API-KEY": UNIPILE_API_KEY, accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unipile post lookup failed: ${response.status} ${await response.text()}`);
+  }
+
+  const body = await response.json();
+  if (!body.social_id) {
+    throw new Error(`Unipile post response had no social_id: ${JSON.stringify(body)}`);
+  }
+
+  console.log(`Resolved social_id for post ${POST_ID}: ${body.social_id}`);
+  return body.social_id;
+}
+
+async function fetchAllComments(socialId) {
   const comments = [];
   let cursor = null;
 
   do {
-    const url = new URL(`${UNIPILE_BASE_URL}/api/v1/posts/${POST_ID}/comments`);
+    const url = new URL(`${UNIPILE_BASE_URL}/api/v1/posts/${encodeURIComponent(socialId)}/comments`);
     url.searchParams.set("account_id", UNIPILE_ACCOUNT_ID);
     url.searchParams.set("limit", "50");
     if (cursor) url.searchParams.set("cursor", cursor);
@@ -100,7 +125,8 @@ async function forwardToN8n(comment) {
 
 async function main() {
   const seenIds = loadSeenIds();
-  const comments = await fetchAllComments();
+  const socialId = await resolveSocialId();
+  const comments = await fetchAllComments(socialId);
 
   const newMatches = comments.filter(
     (c) =>
