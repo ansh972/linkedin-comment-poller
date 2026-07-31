@@ -1,0 +1,47 @@
+name: Poll LinkedIn Comments
+
+on:
+  schedule:
+    # GitHub Actions does not guarantee exact timing on the free tier during
+    # high load -- treat this as "every ~10-15 minutes", not exact.
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: poll-linkedin-comments
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Poll Unipile and forward new comments to n8n
+        env:
+          UNIPILE_BASE_URL: ${{ secrets.UNIPILE_BASE_URL }}
+          UNIPILE_ACCOUNT_ID: ${{ secrets.UNIPILE_ACCOUNT_ID }}
+          UNIPILE_API_KEY: ${{ secrets.UNIPILE_API_KEY }}
+          POST_ID: ${{ secrets.POST_ID }}
+          TRIGGER_WORD: ${{ secrets.TRIGGER_WORD }}
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
+        run: node poll.js
+
+      - name: Commit updated state (only if changed)
+        run: |
+          if ! git diff --quiet -- state/seen-comments.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add state/seen-comments.json
+            git commit -m "Update seen-comments state [skip ci]"
+            git push
+          else
+            echo "No state change, nothing to commit."
+          fi

@@ -1,0 +1,13 @@
+{
+  "name": "linkedin-comment-poller",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Polls Unipile for new trigger-word comments on a LinkedIn post and forwards only new matches to an n8n webhook, so n8n's execution quota is only spent on real work.",
+  "main": "poll.js",
+  "scripts": {
+    "poll": "node poll.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
