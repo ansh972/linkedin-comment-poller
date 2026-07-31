@@ -126,9 +126,11 @@ async function forwardToN8n(comment) {
     body: JSON.stringify({
       id: comment.id,
       text: comment.text,
-      author_id: comment.author_id,
-      author_name: comment.author_name,
-      author_headline: comment.author_headline,
+      // Unipile's comment object has no display name -- only an opaque author id
+      // and author_details.headline. n8n resolves the actual name later via the
+      // profile lookup it already does for connection-status checking.
+      author_id: comment.author,
+      author_headline: comment.author_details ? comment.author_details.headline : null,
     }),
   });
 
@@ -153,7 +155,7 @@ async function main() {
   console.log(`Fetched ${comments.length} comments, ${newMatches.length} new trigger-word match(es).`);
 
   for (const comment of newMatches) {
-    console.log(`Forwarding comment ${comment.id} from ${comment.author_name || comment.author_id}`);
+    console.log(`Forwarding comment ${comment.id} from author ${comment.author}`);
     await forwardToN8n(comment);
     seenIds.add(comment.id);
   }
