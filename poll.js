@@ -65,7 +65,7 @@ async function fetchAllComments() {
     if (cursor) url.searchParams.set("cursor", cursor);
 
     const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${UNIPILE_API_KEY}` },
+      headers: { "X-API-KEY": UNIPILE_API_KEY, accept: "application/json" },
     });
 
     if (!response.ok) {
