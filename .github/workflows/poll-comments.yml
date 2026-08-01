@@ -27,9 +27,7 @@ jobs:
           UNIPILE_BASE_URL: ${{ secrets.UNIPILE_BASE_URL }}
           UNIPILE_ACCOUNT_ID: ${{ secrets.UNIPILE_ACCOUNT_ID }}
           UNIPILE_API_KEY: ${{ secrets.UNIPILE_API_KEY }}
-          POST_ID: ${{ secrets.POST_ID }}
-          POST_ID_TYPE: ${{ secrets.POST_ID_TYPE }}
-          TRIGGER_WORD: ${{ secrets.TRIGGER_WORD }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
         run: node poll.js
 
