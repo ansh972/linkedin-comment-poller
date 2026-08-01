@@ -237,10 +237,24 @@ async function forwardToN8n(comment, campaign, socialId) {
     body: JSON.stringify({
       id: comment.id,
       text: comment.text,
-      // Unipile's comment object has no display name -- only an opaque author id
-      // and author_details.headline. n8n resolves the actual name later via the
-      // profile lookup it already does for connection-status checking.
+      // IMPORTANT: comment.author (Unipile's top-level "author" field on a list-comments
+      // response) is NOT a resolvable profile ID -- verified against live data on 2026-08-01,
+      // it comes back as a bare display name for BOTH real people ("ANSH SHARMA") and company
+      // pages ("AdLift Media using AI"). Calling Unipile's user-lookup/chat-creation endpoints
+      // with this value 422s ("Recipient cannot be reached") even for genuine, reachable people.
+      // Kept here only as a display-name fallback / Sheet dedup key -- never pass it to a
+      // Unipile API call.
       author_id: comment.author,
+      // The ACTUAL resolvable ID: a LinkedIn member provider_id (e.g. "ACoAAF...") for people,
+      // or a numeric company-page ID for company pages. Confirmed via live comment.author_details.id
+      // that this differs from comment.author and is what n8n must use for the connection-status
+      // lookup, DM/chat creation attendees_ids, and @mention profile_id.
+      author_provider_id: comment.author_details ? comment.author_details.id : null,
+      // Structural signal straight from the comment payload -- true for company/organization
+      // pages, false for real people. Confirmed present and correct on live company-page
+      // comments. Lets n8n route company pages straight to its "Unreachable" branch without
+      // wasting a lookup call (and without relying solely on catching a 422).
+      author_is_company: comment.author_details ? !!comment.author_details.is_company : false,
       author_headline: comment.author_details ? comment.author_details.headline : null,
       post_social_id: socialId,
       lead_magnet_link: campaign.leadMagnetLink,
