@@ -29,6 +29,8 @@ jobs:
           UNIPILE_API_KEY: ${{ secrets.UNIPILE_API_KEY }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
+          LEAD_TRACKING_SHEET_ID: ${{ secrets.LEAD_TRACKING_SHEET_ID }}
+          CONNECTION_CONFIRMED_WEBHOOK_URL: ${{ secrets.CONNECTION_CONFIRMED_WEBHOOK_URL }}
         run: node poll.js
 
       - name: Commit updated state (only if changed)

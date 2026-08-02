@@ -26,6 +26,34 @@ Every ~10-15 minutes (GitHub Actions cron), this repo runs `poll.js`, which:
 The n8n workflow ("LinkedIn Auto-DM - Comment Trigger to Lead Magnet DM") only executes
 when this script actually POSTs something -- i.e. only on real new leads.
 
+Every run also checks connection status for pending leads (see below) -- this used to
+be a separate n8n-internal schedule trigger, but that's been folded into this same
+script/cron job so there's only one polling schedule to think about, not two.
+
+## Connection-status polling ("did they accept my connection request yet?")
+
+Unipile has no reliable webhook for "someone accepted a connection request I
+*received*" -- its `new_relation` webhook only covers invitations *you* sent that got
+accepted by someone else (confirmed against live data: a real accepted connection sat
+for 20+ hours with the webhook never firing). Same fix as the comments problem: poll
+for it ourselves instead of waiting for a push event that doesn't cover this direction.
+
+Every run, `poll.js` also:
+
+1. Fetches the Lead Tracking sheet (the one n8n itself writes to, `LEAD_TRACKING_SHEET_ID`
+   -- also read via its public CSV export URL) and finds every row where `dm_status` is
+   still `not_sent`, `connection_status` isn't `UNREACHABLE` (skips company pages), and a
+   `provider_id` is present (older rows from before this column existed are skipped --
+   they'd need a one-off manual backfill to be picked up).
+2. For each one, calls Unipile directly to check whether that person is now connected
+   (`network_distance == "FIRST_DEGREE"` or `is_relationship == true`).
+3. The moment one is, POSTs to n8n's `CONNECTION_CONFIRMED_WEBHOOK_URL`, which sends
+   that person their lead magnet DM and logs it -- no need for them to comment again.
+
+This step is entirely optional/soft-fail: if `LEAD_TRACKING_SHEET_ID` or
+`CONNECTION_CONFIRMED_WEBHOOK_URL` aren't set, it's skipped with a log line, and the
+comment-polling above runs completely unaffected.
+
 ## The campaigns sheet
 
 Columns (see the sheet for the live version):
@@ -70,6 +98,8 @@ API keys and tokens stay in GitHub Secrets, never in the sheet.
    | `UNIPILE_API_KEY` | Your Unipile API key |
    | `GOOGLE_SHEET_ID` | The ID from the campaigns sheet's URL (the long string between `/d/` and `/edit`) |
    | `N8N_WEBHOOK_URL` | `https://qismt.app.n8n.cloud/webhook/8f62b703-8f95-4656-9a53-3c860767c51b/unipile-comment-webhook` |
+   | `LEAD_TRACKING_SHEET_ID` | `1TONtjXhWE1eYcpdNopHhib7Or-hpRYj_hAXo3MhENVE` (the Lead Tracking sheet n8n writes to) |
+   | `CONNECTION_CONFIRMED_WEBHOOK_URL` | `https://qismt.app.n8n.cloud/webhook/fc575b3b-bd15-4b78-a826-6f04d4acd467/unipile-connection-confirmed-webhook` |
 
 3. The workflow is scheduled via cron and also supports manual runs (Actions tab ->
    "Poll LinkedIn Comments" -> Run workflow) for testing.
